@@ -14,6 +14,19 @@ def detect_batch(model, df, batch_date):
     predictions, scores = score_transactions(model, X)
 
     batch["anomaly_flag"] = predictions
-    batch["raw_anomaly_score"] = -scores
+    raw_scores = -scores
+
+    batch["anomaly_score"] = (
+    (raw_scores - raw_scores.min())
+    / (raw_scores.max() - raw_scores.min())
+    * 100
+    if raw_scores.max() != raw_scores.min()
+    else 0
+)
+
+    batch["anomaly_reason"] = "Normal"
+    batch.loc[batch["anomaly_flag"] == -1, "anomaly_reason"] = (
+        "Unusual transaction behaviour detected by the model"
+    )
 
     return batch
