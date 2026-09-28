@@ -1,0 +1,10 @@
+City		Team Alias			Team ID				API Key
+
+Bangalore	Bangalore_3	e44409ff-a790-4443-9590-7315d0fe7801	sk-yFftwGZoPHU74eanQ0MqPg	
+
+
+
+
+
+
+git config --global --add safe.directory '%(prefix)///genailabmaashackathonpre.file.core.windows.net/genailab-maas-hackathonpre/Banglore/ING_Hackathon/Team3/frauddetectionanamoly'	
