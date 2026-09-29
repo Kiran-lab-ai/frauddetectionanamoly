@@ -24,6 +24,19 @@ def detect_batch(model, df, batch_date):
     else 0
 )
 
+
+    def classify_risk(score):
+        if score >= 90:
+            return "Critical"
+        elif score >= 75:
+            return "High"
+        elif score >= 50:
+            return "Medium"
+        else:
+            return "Low"
+
+    batch["risk_level"] = batch["anomaly_score"].apply(classify_risk)
+    
     batch["anomaly_reason"] = "Normal"
     batch.loc[batch["anomaly_flag"] == -1, "anomaly_reason"] = (
         "Unusual transaction behaviour detected by the model"
