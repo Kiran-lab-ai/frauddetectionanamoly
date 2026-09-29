@@ -1,41 +1,194 @@
+import os
 import pandas as pd
-from src.feature_engineering import load_data, prepare_features, ML_FEATURES
-from src.anomaly_detector import train_model
 import joblib
 
-history = pd.read_csv("metadata/historical_metrics.csv")
+from src.feature_engineering import (
+    load_data,
+    prepare_features,
+    ML_FEATURES
+)
 
-approved_dates = history[
-    (history["approval_status"] == "APPROVED") &
-    (history["learned_into_model"] == True)
-]["batch_date"].astype(str).unique()
+from src.anomaly_detector import train_model
 
-print("Approved batches eligible for training:", approved_dates)
 
-training_df = pd.DataFrame()
+# =========================================================
+# Configuration
+# =========================================================
 
-for batch_date in approved_dates:
-    batch = load_data("data/historical/bank_transactions_data_2.csv")
-    batch["TransactionDate"] = pd.to_datetime(batch["TransactionDate"])
+HISTORICAL_DATA = (
+    "data/historical/bank_transactions_data_2.csv"
+)
 
-    batch = batch[
-        batch["TransactionDate"].dt.date ==
-        pd.to_datetime(batch_date).date()
-    ]
+VALIDATED_DATA = (
+    "metadata/validated_transactions.csv"
+)
 
-    training_df = pd.concat([training_df, batch], ignore_index=True)
+MODEL_OUTPUT = (
+    "models/model_pulse_v2.pkl"
+)
 
-print("Training records:", len(training_df))
 
-training_df = prepare_features(training_df)
+# =========================================================
+# Load Historical Baseline
+# =========================================================
 
-X = training_df[ML_FEATURES].fillna(0)
+print("\n==========================================")
+print("PULSE CONTROLLED RETRAINING")
+print("==========================================")
 
-print("Training features:", len(ML_FEATURES))
+historical_df = load_data(
+    HISTORICAL_DATA
+)
 
-model = train_model(X)
+print(
+    "Historical baseline records:",
+    len(historical_df)
+)
 
-joblib.dump(model, "models/model_pulse_v2.pkl")
 
-print("Retraining completed")
-print("Model saved: model_pulse_v2.pkl")
+# =========================================================
+# Load Customer-Verified Transactions
+# =========================================================
+
+if os.path.exists(
+    VALIDATED_DATA
+):
+
+    validated_df = pd.read_csv(
+        VALIDATED_DATA
+    )
+
+else:
+
+    validated_df = pd.DataFrame()
+
+
+# =========================================================
+# Select Only Customer-Confirmed Genuine
+# =========================================================
+
+if not validated_df.empty:
+
+    genuine_df = validated_df[
+        validated_df[
+            "eligible_for_learning"
+        ] == True
+    ].copy()
+
+else:
+
+    genuine_df = pd.DataFrame()
+
+
+print(
+    "Customer-confirmed genuine records:",
+    len(genuine_df)
+)
+
+
+# =========================================================
+# Controlled Learning Dataset
+# =========================================================
+
+training_df = historical_df.copy()
+
+
+if not genuine_df.empty:
+
+    # Keep only columns available in
+    # the historical transaction dataset.
+
+    genuine_transactions = genuine_df[
+        historical_df.columns
+    ].copy()
+
+    # -----------------------------------------------------
+    # Controlled feedback:
+    # customer-confirmed genuine transactions receive
+    # additional representation during retraining.
+    # -----------------------------------------------------
+
+    training_df = pd.concat(
+        [
+            training_df,
+            genuine_transactions,
+            genuine_transactions
+        ],
+        ignore_index=True
+    )
+
+    print(
+        "Customer-confirmed transactions added "
+        "to learning dataset:",
+        len(genuine_transactions)
+    )
+
+else:
+
+    print(
+        "No customer-confirmed genuine transactions "
+        "available for feedback learning."
+    )
+
+
+print(
+    "Final training records:",
+    len(training_df)
+)
+
+
+# =========================================================
+# Prepare Features
+# =========================================================
+
+training_df = prepare_features(
+    training_df
+)
+
+
+X = training_df[
+    ML_FEATURES
+].fillna(0)
+
+
+print(
+    "Training features:",
+    len(ML_FEATURES)
+)
+
+
+# =========================================================
+# Train PULSE Model
+# =========================================================
+
+model = train_model(
+    X
+)
+
+
+# =========================================================
+# Save New Model
+# =========================================================
+
+joblib.dump(
+    model,
+    MODEL_OUTPUT
+)
+
+
+print(
+    "\n=========================================="
+)
+
+print(
+    "PULSE retraining completed successfully."
+)
+
+print(
+    "Model saved:",
+    MODEL_OUTPUT
+)
+
+print(
+    "==========================================\n"
+)
