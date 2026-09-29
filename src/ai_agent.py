@@ -31,7 +31,7 @@ Do not claim that the transaction is definitely fraud.
 """
     try:
         response = client.responses.create(
-            model="gpt-5-mini",
+            model="gpt-5.6-luna",
             input=ai_prompt
         )
         return response.output_text
